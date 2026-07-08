@@ -1,5 +1,5 @@
 {
-  "input_image": "/Users/saugata/Projects/Constraction_rebar_analyzer/input_images/testImage_5.jpg",
+  "input_image": "/Users/saugata/Projects/Constraction_rebar_analyzer/input_images/testImage_1.png",
   "output_dir": "/Users/saugata/Projects/Constraction_rebar_analyzer/outputs/test",
   "output_image": "/Users/saugata/Projects/Constraction_rebar_analyzer/outputs/test/counted.png",
   "bar_counts": {
@@ -7,37 +7,37 @@
     "horizontal_rods": 4
   },
   "vertical_positions_px": [
-    105,
-    278,
-    429,
-    591,
-    746
+    413,
+    891,
+    1313,
+    1784,
+    2258
   ],
   "horizontal_positions_px": [
-    150,
-    312,
-    489,
-    644
+    123,
+    424,
+    830,
+    1380
   ],
   "debug": {
     "region": {
       "y0": 0,
-      "y1": 807,
+      "y1": 1472,
       "x0": 0,
-      "x1": 863
+      "x1": 2860
     },
     "vertical_peaks_px": [
-      105,
-      278,
-      429,
-      591,
-      746
+      413,
+      891,
+      1313,
+      1784,
+      2258
     ],
     "horizontal_peaks_px": [
-      150,
-      312,
-      489,
-      644
+      123,
+      424,
+      830,
+      1380
     ]
   },
   "status": "ok",
