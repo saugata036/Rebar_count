@@ -1,0 +1,14 @@
+{
+  "python.defaultInterpreterPath": "/Users/saugata/Projects/Constraction_rebar_analyzer/.venv/bin/python",
+  "python.venvPath": "/Users/saugata/Projects/Constraction_rebar_analyzer",
+  "python.terminal.activateEnvironment": true,
+  "python.languageServer": "Default",
+  "python.analysis.diagnosticMode": "workspace",
+  "python.analysis.extraPaths": ["/Users/saugata/Projects/Constraction_rebar_analyzer/src"],
+  "jupyter.jupyterServerType": "local",
+  "jupyter.kernels.excludePythonEnvironments": [],
+  "jupyter.kernels.trusted": [
+    "/Users/saugata/Projects/Constraction_rebar_analyzer/.venv/share/jupyter/kernels/constraction-rebar-analyzer/kernel.json"
+  ],
+  "notebook.defaultFormatter": "ms-python.python"
+}
