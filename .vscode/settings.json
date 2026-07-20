@@ -2,7 +2,7 @@
   "python.defaultInterpreterPath": "/Users/saugata/Projects/Constraction_rebar_analyzer/.venv/bin/python",
   "python.venvPath": "/Users/saugata/Projects/Constraction_rebar_analyzer",
   "python.terminal.activateEnvironment": true,
-  "python.languageServer": "Default",
+  "python.languageServer": "None",
   "python.analysis.diagnosticMode": "workspace",
   "python.analysis.extraPaths": ["/Users/saugata/Projects/Constraction_rebar_analyzer"],
   "jupyter.jupyterServerType": "local",
