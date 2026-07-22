@@ -343,7 +343,12 @@ def get_clean_image(image_id: str) -> FileResponse:
     path = Path(entry["clean_path"])
     if not path.exists():
         raise HTTPException(status_code=404, detail="Clean image not found")
-    return FileResponse(path, media_type="image/png", filename=path.name)
+    return FileResponse(
+        path,
+        media_type="image/png",
+        filename=path.name,
+        headers={"Cache-Control": "public, max-age=31536000, immutable"},
+    )
 
 
 @router.post("/images/{image_id}/analyze")

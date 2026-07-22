@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import base64
 import os
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -150,7 +149,7 @@ async def get_noisy_image(image_id: str):
     path = Path(row[0])
     if not path.exists():
         raise HTTPException(status_code=404, detail="Noisy image file missing")
-    return FileResponse(path, media_type="image/png")
+    return FileResponse(path, media_type="image/png", headers={"Cache-Control": "public, max-age=31536000, immutable"})
 
 
 @app.get("/images/{image_id}/denoised")
@@ -165,7 +164,7 @@ async def get_denoised_image(image_id: str):
     path = Path(row[0])
     if not path.exists():
         raise HTTPException(status_code=404, detail="Denoised image file missing")
-    return FileResponse(path, media_type="image/png")
+    return FileResponse(path, media_type="image/png", headers={"Cache-Control": "public, max-age=31536000, immutable"})
 
 
 @app.get("/images/{image_id}/overlay")
@@ -180,7 +179,7 @@ async def get_overlay_image(image_id: str):
     path = Path(row[0])
     if not path.exists():
         raise HTTPException(status_code=404, detail="Overlay image file missing")
-    return FileResponse(path, media_type="image/png")
+    return FileResponse(path, media_type="image/png", headers={"Cache-Control": "public, max-age=31536000, immutable"})
 
 
 @app.delete("/images/{image_id}")
@@ -318,21 +317,6 @@ async def analyze(file: UploadFile = File(...)) -> JSONResponse:
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed saving results: {exc}") from exc
 
-    try:
-        # encode denoised image
-        denoised_bytes = persistent_denoised.read_bytes()
-        denoised_image = "data:image/png;base64," + base64.b64encode(denoised_bytes).decode("ascii")
-
-        # encode overlay image
-        overlay_bytes = persistent_overlay.read_bytes()
-        overlay_image = "data:image/png;base64," + base64.b64encode(overlay_bytes).decode("ascii")
-
-        # encode noisy image
-        noisy_bytes = noisy_path.read_bytes()
-        noisy_image = "data:image/png;base64," + base64.b64encode(noisy_bytes).decode("ascii")
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Could not encode result images: {exc}") from exc
-
     return JSONResponse(
         content={
             "status": "ok",
@@ -340,9 +324,9 @@ async def analyze(file: UploadFile = File(...)) -> JSONResponse:
                 "vertical_rods": vertical,
                 "horizontal_rods": horizontal,
             },
-            "noisy_image": noisy_image,
-            "denoised_image": denoised_image,
-            "overlay_image": overlay_image,
+            "noisy_image_url": f"/images/{image_id}/noisy",
+            "denoised_image_url": f"/images/{image_id}/denoised",
+            "overlay_image_url": f"/images/{image_id}/overlay",
             "id": image_id,
         }
     )
