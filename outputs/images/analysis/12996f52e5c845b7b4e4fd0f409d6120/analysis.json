@@ -1,0 +1,55 @@
+{
+  "input_image": "/Users/saugata/Projects/Constraction_rebar_analyzer/outputs/images/clean/12996f52e5c845b7b4e4fd0f409d6120.png",
+  "output_dir": "/Users/saugata/Projects/Constraction_rebar_analyzer/outputs/images/analysis/12996f52e5c845b7b4e4fd0f409d6120",
+  "output_image": "/Users/saugata/Projects/Constraction_rebar_analyzer/outputs/images/analysis/12996f52e5c845b7b4e4fd0f409d6120/counted.png",
+  "bar_counts": {
+    "vertical_rods": 6,
+    "horizontal_rods": 8
+  },
+  "vertical_positions_px": [
+    12,
+    42,
+    71,
+    98,
+    129,
+    153
+  ],
+  "horizontal_positions_px": [
+    13,
+    46,
+    79,
+    108,
+    134,
+    162,
+    188,
+    213
+  ],
+  "debug": {
+    "region": {
+      "y0": 0,
+      "y1": 233,
+      "x0": 0,
+      "x1": 170
+    },
+    "vertical_peaks_px": [
+      12,
+      42,
+      71,
+      98,
+      129,
+      153
+    ],
+    "horizontal_peaks_px": [
+      13,
+      46,
+      79,
+      108,
+      134,
+      162,
+      188,
+      213
+    ]
+  },
+  "status": "ok",
+  "message": "Found 6 vertical and 8 horizontal bars."
+}

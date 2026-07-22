@@ -14,15 +14,32 @@ from PIL import Image
 GEMINI_MODEL = "gemini-3.5-flash"
 MASK_GENERATION_PROMPT = """
 Analyze the provided construction rebar column image carefully.
-Your task is to identify and isolate ONLY the absolute front-facing grid layer (the 5 vertical bars and 9 horizontal bars closest to the camera) and the 4 corner concrete spacer blocks.
+Your task is to identify and isolate ALL front-facing vertical and horizontal rebar elements that form the outermost front grid layer closest to the camera (including all main vertical bars, horizontal ties, intersection wire ties, and corner concrete spacer blocks on this front plane).
+
+CRITICAL INSTRUCTION: Do NOT assume a fixed count of bars. Count and extract ALL visible front-layer vertical bars (e.g., 5, 8, 9, or more) and ALL front-layer horizontal ties present in the image.
+IMPORTANT FOR EDGE BARS: Ensure you capture the extreme outermost left-side and right-side vertical bars completely from top to bottom. Do NOT omit or truncate the first vertical bar on the far left.
 
 Generate a valid JSON object containing:
-1. "vertical_bars": An array of centerlines representing the 5 vertical front-facing bars. Each bar is represented by its start and end point center coordinates.
-2. "horizontal_bars": An array of centerlines representing the 9 horizontal front-facing ties. Each tie is represented by its start and end point center coordinates.
-3. "spacer_blocks": An array of bounding boxes tracing the 4 corner concrete spacer blocks.
+1. "vertical_bars": An array of centerlines representing ALL vertical bars on the outermost front plane. Each bar is represented by its start (x1, y1) and end (x2, y2) point center coordinates.
+2. "horizontal_bars": An array of centerlines representing ALL horizontal ties on the outermost front plane. Each tie is represented by its start (x1, y1) and end (x2, y2) point center coordinates.
+3. "spacer_blocks": An array of bounding boxes tracing any corner concrete spacer blocks on this front plane.
 
-Do not include any background elements.
-Return your response strictly in this JSON format and scale coordinates 0..1000.
+Do not include any background elements: erase or omit deep interior bars inside the cage, secondary rear layers, ground, blue pipes, scaffolding, and sky.
+Exclude all diagonal cross-ties and depth-defining side columns that recede into the distance.
+
+Return your response strictly in this JSON format:
+{
+  "vertical_bars": [
+    {"x1": int, "y1": int, "x2": int, "y2": int}
+  ],
+  "horizontal_bars": [
+    {"x1": int, "y1": int, "x2": int, "y2": int}
+  ],
+  "spacer_blocks": [
+    {"ymin": int, "xmin": int, "ymax": int, "xmax": int}
+  ]
+}
+Note: Scale all coordinate values on a normalized 0 to 1000 system relative to the image bounds. Return ONLY the raw JSON block.
 """
 
 REBAR_SCHEMA = {
@@ -153,25 +170,45 @@ def clean_rebar_structure(image_path: Path, output_path: Path) -> None:
     h, w, _ = src_img.shape
     max_dim = max(h, w)
     gc_mask = np.zeros((h, w), dtype=np.uint8)
-    target_lines = mask_data.get("vertical_bars", []) + mask_data.get("horizontal_bars", [])
 
-    for bar in target_lines:
+    # Extend vertical lines that span most of the frame towards top/bottom margins
+    # so edge bars aren't truncated by the model's detected endpoints.
+    processed_verticals = []
+    for bar in mask_data.get("vertical_bars", []):
+        x1, y1, x2, y2 = _safe_extract_line(bar)
+        if y1 > y2:
+            x1, y1, x2, y2 = x2, y2, x1, y1
+        if abs(y2 - y1) > 400:
+            y1 = max(0, y1 - 40)
+            y2 = min(1000, y2 + 40)
+        processed_verticals.append({"x1": x1, "y1": y1, "x2": x2, "y2": y2})
+
+    all_target_lines = processed_verticals + mask_data.get("horizontal_bars", [])
+
+    # Step A: Wide corridors (Probable Background)
+    for bar in all_target_lines:
         x1, y1, x2, y2 = _safe_extract_line(bar)
         pt1 = (int(x1 / 1000.0 * w), int(y1 / 1000.0 * h))
         pt2 = (int(x2 / 1000.0 * w), int(y2 / 1000.0 * h))
-        _draw_perspective_line(gc_mask, pt1, pt2, max_dim, cv2.GC_PR_BGD, 0.048, 0.015)
+        is_edge_bar = x1 < 120 or x2 < 120 or x1 > 880 or x2 > 880
+        bg_ratio = 0.065 if is_edge_bar else 0.048
+        _draw_perspective_line(gc_mask, pt1, pt2, max_dim, cv2.GC_PR_BGD, bg_ratio, 0.018)
 
-    for bar in target_lines:
+    # Step B: Rebar cylinder bodies (Probable Foreground)
+    for bar in all_target_lines:
         x1, y1, x2, y2 = _safe_extract_line(bar)
         pt1 = (int(x1 / 1000.0 * w), int(y1 / 1000.0 * h))
         pt2 = (int(x2 / 1000.0 * w), int(y2 / 1000.0 * h))
-        _draw_perspective_line(gc_mask, pt1, pt2, max_dim, cv2.GC_PR_FGD, 0.028, 0.009)
+        is_edge_bar = x1 < 120 or x2 < 120 or x1 > 880 or x2 > 880
+        fg_ratio = 0.038 if is_edge_bar else 0.028
+        _draw_perspective_line(gc_mask, pt1, pt2, max_dim, cv2.GC_PR_FGD, fg_ratio, 0.012)
 
-    for bar in target_lines:
+    # Step C: Core seeds (Definite Foreground)
+    for bar in all_target_lines:
         x1, y1, x2, y2 = _safe_extract_line(bar)
         pt1 = (int(x1 / 1000.0 * w), int(y1 / 1000.0 * h))
         pt2 = (int(x2 / 1000.0 * w), int(y2 / 1000.0 * h))
-        _draw_perspective_line(gc_mask, pt1, pt2, max_dim, cv2.GC_FGD, 0.012, 0.004)
+        _draw_perspective_line(gc_mask, pt1, pt2, max_dim, cv2.GC_FGD, 0.016, 0.006)
 
     for block in mask_data.get("spacer_blocks", []):
         ymin, xmin, ymax, xmax = _safe_extract_box(block)
@@ -182,24 +219,23 @@ def clean_rebar_structure(image_path: Path, output_path: Path) -> None:
         cv2.rectangle(gc_mask, (p_xmin, p_ymin), (p_xmax, p_ymax), cv2.GC_FGD, -1)
 
     gray = cv2.cvtColor(src_img, cv2.COLOR_BGR2GRAY)
-    sky_pixels = gray > 210
-    shadow_pixels = gray < 40
+    sky_pixels = gray > 225
+    shadow_pixels = gray < 25
     prune_mask = sky_pixels | shadow_pixels
     gc_mask[(prune_mask) & (gc_mask != cv2.GC_FGD)] = cv2.GC_BGD
 
     bgd_model = np.zeros((1, 65), np.float64)
     fgd_model = np.zeros((1, 65), np.float64)
-    grabcut_rect = (0, 0, w, h)
-    cv2.grabCut(src_img, gc_mask, grabcut_rect, bgd_model, fgd_model, 5, cv2.GC_INIT_WITH_MASK)
+    cv2.grabCut(src_img, gc_mask, None, bgd_model, fgd_model, iterCount=5, mode=cv2.GC_INIT_WITH_MASK)
 
     final_mask = np.where((gc_mask == cv2.GC_FGD) | (gc_mask == cv2.GC_PR_FGD), 255, 0).astype("uint8")
     kernel_open = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
-    kernel_close = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+    kernel_close = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 7))
     final_mask = cv2.morphologyEx(final_mask, cv2.MORPH_OPEN, kernel_open)
     final_mask = cv2.morphologyEx(final_mask, cv2.MORPH_CLOSE, kernel_close)
 
     num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(final_mask)
-    min_area = int(h * w * 0.0015)
+    min_area = int(h * w * 0.0005)
     cleaned_mask = np.zeros_like(final_mask)
     for i in range(1, num_labels):
         if stats[i, cv2.CC_STAT_AREA] >= min_area:

@@ -54,9 +54,21 @@ def _estimate_peak_distance(
     spacing_fraction: float,
     fallback_divisor: int,
 ) -> int:
-    """Estimate minimum peak spacing from a coarse first pass."""
+    """Estimate minimum peak spacing from a coarse first pass.
+
+    A thick bar (perspective foreshortening, rust texture, a highlight down
+    its middle) can create two local maxima close together in the profile.
+    Using the normal prominence threshold for this rough pass lets that
+    weaker second bump count as its own "bar", dragging the estimated
+    spacing down and letting the same artifact slip through the real pass
+    below too. Requiring much higher prominence here restricts the rough
+    pass to only the dominant peaks, so the spacing estimate reflects true
+    bar-to-bar distance and correctly forces find_peaks to drop the weaker
+    duplicate later.
+    """
     rough_distance = max(min_distance, profile.size // rough_distance_divisor)
-    rough_peaks, _ = find_peaks(profile, distance=rough_distance, prominence=prominence)
+    rough_prominence = prominence * 3.0
+    rough_peaks, _ = find_peaks(profile, distance=rough_distance, prominence=rough_prominence)
     if len(rough_peaks) >= 3:
         spacing = float(np.percentile(np.diff(rough_peaks), 25))
         return max(min_distance, int(spacing * spacing_fraction))
